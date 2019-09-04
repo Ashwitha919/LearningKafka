@@ -1,0 +1,86 @@
+# Directories #
+/build/
+/bin/
+target/
+
+# Gradle #
+.gradle
+ 
+# OS Files #
+.DS_Store
+ 
+*.class
+ 
+# Package Files #
+*.jar
+*.war
+*.ear
+*.db
+ 
+######################
+# Windows
+######################
+ 
+# Windows image file caches
+Thumbs.db 
+ 
+# Folder config file
+Desktop.ini
+ 
+######################
+# OSX
+######################
+ 
+.DS_Store
+.svn
+ 
+# Thumbnails
+._*
+ 
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+ 
+ 
+######################
+# Eclipse
+######################
+.project
+.classpath
+.settings/
+.springBeans 
+*.pydevproject
+.metadata
+bin/**
+tmp/**
+tmp/**/*
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+/src/main/resources/rebel.xml
+org.eclipse.core.resources.prefs
+org.eclipse.jdt.core.prefs
+org.eclipse.m2e.core.prefs
+org.eclipse.wst.common.project.facet.core.xml
+# External tool builders
+.externalToolBuilders/
+
+###################
+# Idea
+###################
+.idea
+*.iml
+ 
+# Locally stored "Eclipse launch configurations"
+*.launch
+ 
+# CDT-specific
+.cproject
+ 
+# PDT-specific
+.buildpath
+
+.artifactory_path

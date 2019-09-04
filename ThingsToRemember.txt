@@ -1,0 +1,124 @@
+Acks =0 &min.insync.replicas
+    - acks=0 -> no response is requested
+    - if brokers goes offline,we won't know nd will lose data
+    - but excellent in performance
+ Acks=1
+    -LEADER RESPONSE IS REQUESTED, BUT REPLICATION IS NOT GUARANTEE
+    - if an ack is not received, producer may retry
+ Acks=all (replicas acks)
+    - leader+replicas ack requested
+    - added latency as response is needed from leader nd replicas
+    - no data loss if enough replicas is online
+    - if acks =all then use min.insync.replicas =2 (implies that atleast 2 brokers that are ISR (including leader) must respond that they have data)
+    - when min.insync.replicas =2 if replicas are down, then it returns exception for not_enough_replicas.
+
+
+1. Clients are bi-directional (clients and brokers have compatibility) meaning,
+older clients can talk to newer broker and newer clients can talk to older broker.
+
+2.example of transient failure notEnoughReplicasException
+3. retries setting will help with not dealing exception on our own.
+    default 0
+    Integer.MAX_value ->indefintely retry till suceeds
+4. in case of retry the message will be sent out of order (2nd msg becomes 1 & 1st becomes 2nd)
+5. max.in.flight.request.per.connection controls how many request can be made parallel for partition, default is 5
+    to ensure ordering set 1 (but may impact throughput)
+6.Idempotent producer:
+    - msgs can be duplicated due to netwrk error. (ex if kafka didn't send acknowldge to producer, and
+    since retries  is set to 1, producer will send again, kafka will write it to logs again and send one ack and losing earlier ack)
+    - in case idempotent when acks never reached, producer will retry with producer id and kafka detects duplicate and does not write to logs.
+        So this is stable and safe.
+    idempotent producer will come with:
+        retries=Integer.MAX_VALUE(2^31-1=2147483647)
+        max.in.flight.requests=1(Kafka>=0.11 & <1.1)
+        acks=all
+    In order benefit from above feature set producer property to producerProp.put("enable.idempotence",true);
+ 8.If kafka<0.11
+   - acks=all(producer level)
+       * ensure data is properly repllicated before an ack is received
+   - min.insync.replicas=2(broker/topic level)
+       * ensures 2 brokers in ISR at least have the data after an ack
+   - retries=MAX_INT(producer level)
+       * ensures transient error are retried indefinitely
+   -max.inflight.requests.per.connection=1 (producer level)
+       * ensures only one request is tried at any time, preventing message reordering in case of retries.
+
+ 9. Kafka >0.11
+    - enable.idempotence=true(producer level) + min.insync.replicas=2(broker/topic level)
+        *implies acks=all,retries=MAX_INT,max.in.flight.requests.per.connection=5(default)
+        * while keeping ordering guarantees and improved performance
+        NOTE: running a "safe producer" might impact throughput nd latency
+10. message compression
+    -producers ussually send data that is test-based, for example with JSON data
+    - in this case it is important to apply compression to the producers
+    - compression is enabled at producer level ad doesn't require any configuration change in the brokers or consumers
+    - "compression.type" can be "none"(default),'gzip','lz4','snappy'
+    - compression is more effective the bigger the batch of message being sent to kafka
+    - refer https://blog.cloudflare.com/squeezing-the-firehose/
+
+11.Producer batch:is basically kafka batching messages in its own.
+    - producers batch will compress when enabled.
+    - when sent to kafka, big decrease in size, and replication is faster, increasing netwrk bandwidth.
+    - advantages
+        *MUCH SMALLER (compress ratio upto 4x)
+        * better throuput, less latency
+        * better disk utilizaion in kafka (stored on disk are smaller)
+    - disadvantages (very minor)
+        * producers, consumer must commit some CPU cycles to compress or decompress
+    - consider testing snappy or lz4 for optimla speed or compression ratio (gzip have high compression ratio nd not very fast )
+    - based on pipeline test them
+    -always use compression in production
+    - linger.ms nd batch.size to have bigger batches, and therefore more compression nd high throughput producers
+
+        * default have upto 5 requests in flight, meaning up to 5 messages individually sent at the same time.
+        * after this, if more msgs have to be sent while other are in flight, kafka is smart and will start batching then while they wait to send them all at onse
+        *This  smart batching allows kafka to increase throughput while maintaining very low latency
+        *Batches have higher compression ratio so better efficiency
+     - how to control batching
+
+        * linger.ms: no.of ms a producer is willing to wait before sending a batch out (default 0- to send data immediately)
+        * by introducing some lag (its ok if we don't get data right away we can might for 5-10ms more), increase chances of msgs being sent in batch
+        * so at teh expense of introducing a small delay, we can increase throughput, compression and efficiency of producer.
+        * if batch is full(see batch.size) before the end of the linger.ms period, it will be sent to kafka right away.
+     - Batch size: max no. of bytes that will  be included in a batch by default is 16kb
+     - increase a batch size say 32kb, 64kb can help increase compression, throughtput, and efficiency of requests
+     - any msg that is bigger that the batch size will not be batched
+     - a batch is allocated per partition, so make sure that you don't see it to a number that's too high, otherwise you'lll run waste memory.
+     NOTE: ONE CAN MONITOR AVG BATCH SIZE METRIC USING KAFKA PRODUCER METRICS
+    - Use snappy(made by google) if msgs are text based as it has gud balance of CPU/compression ratio
+
+12. Producer default partitioner and how keys are hashed
+    - by default, keys are hashed using murmur2 algorithm
+    - it is preferred to not overide the behavior of partitioner, but is possible
+    - formula is targetPartition = Utils.abs(Utils.murmur2(record.key()))%numPartitions
+    - This means same key will go to the same partition nd adding partitions to a topic will completely alter the formula.
+13. Max.block.ms & buffer.memory
+    - if producer produces faster than broker can take the records will be buffered in producer memory.(buffer.memory=32MB is size of send buffer by default)
+    - that buffer will fill up over time and fill back down when the throughput to the broker increases.
+    - if that buffer is full (all 32 MB), then the .send() method will start to block. (code will not produce more data or waits)
+    - this waits is controlled by max.block.ms=60000: time the .send() method will block until throwing an exception. exception are thrown when
+        * producer has filled up its buffer
+        * broker is not accepting any data
+        * 60 seconds has elasped.
+    - if an exception is hit that usually means brokers are down or overloaded as they can't respond to requests.
+
+14.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
