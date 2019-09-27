@@ -102,21 +102,36 @@ older clients can talk to newer broker and newer clients can talk to older broke
         * 60 seconds has elasped.
     - if an exception is hit that usually means brokers are down or overloaded as they can't respond to requests.
 
-14.
+14. Delivery semantics for consumers
+    - at-most-once: offsets are  committed as soon as the message batch is received.
+        if the processing goes wrong, the message  will be lost(it won't be read again)
+    - at-least-once: offsets are commited after the message is processed.if the processing goes wrong msg will be read again.
+        This can result in duplicate processing of messages.(MAKE SURE PROCESSING IS IDEMPOTENT)
+    - can be achieved for kafka =>kafka workflows uisng kafka streams API
+    NOTE: Most applications use at least once and ensure processing is idempotent.
 
+15. Consumer Poll Behaviour (other msgng bus have push model)
+    - This allows consumers to control where in the log they want to consume, and ability to replay events
+    - fetch.min.bytes(by default 1)
+        -controls how much data you want to pull at least on each request.
+        -helps improves throughput and decrease in request number as until particular bytes of data is received kafka will not return any.
+        -at cost of latency
+    - max.poll.records (default by 500)
+        -controls how much data to receive per poll request.
+        - increase if msg is very small and have memory in RAM
+        - monitor how many records are polled per request.
+    - max.partition.fetch.bytes(default 1MB)
+        - max data returned by broker per partition
+        - if you read from 100 partitons, it require more memory
+    - fetch.max.bytes(50MB)
+        - max data returned for each fetch request (covers multiple partitions)
+        - consumer perform multiple fetches in parallel.
 
-
-
-
-
-
-
-
-
-
-
-
-
+16 Consumer offset commit strategies (2 types)
+    - enable.auto.commit=true & synchronus processing of batches
+        - this will commit automatically for you at regular interval (by default it is auto.commit.interval.ms=5000)
+        - if synchronus processing is not used,it will be "at-most-once" as offsets will be committed before data is processed.
+    - enable.auto.commit=false & manual commit synchornously
 
 
 
